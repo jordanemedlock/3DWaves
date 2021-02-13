@@ -1,0 +1,57 @@
+name:                WaveFront
+version:             0.1.0.0
+github:              "jordanemedlock/3DWaves"
+license:             BSD3
+author:              "Jordan E Medlock"
+maintainer:          "jordanemedlock@gmail.com"
+copyright:           "2020 Jordan E Medlock"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/jordanemedlock/3DWaves#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- lens
+- transformers
+- linear
+- vector
+- text
+- attoparsec
+- filepath
+- containers
+- QuickCheck
+- Cartesian
+
+library:
+  source-dirs: src
+  exposed-modules: 
+  - Graphics.WaveFront
+  # dependencies:
+  # - GLFW-b >=3.3 && <4
+  # - OpenGL >=3.0 && <4
+  # - bindings-GLFW >=3.3 && <4
+  # - JuicyPixels >=3.3 && <4
+  # - freetype2 >=0.2 && <0.3
+
+ghc-options:
+- -threaded
+- -rtsopts
+- -with-rtsopts=-N
+- -Wall
+- -Wunused-binds
+- -Wunused-imports
+- -ddump-splices
+# tests:
+
+
+default-extensions: []

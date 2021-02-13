@@ -47,7 +47,7 @@ import qualified Data.Text.IO as T
 import           Data.Vector (Vector)
 
 import Control.Applicative ((<$>))
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Error
 import Control.Monad.Trans.Class (lift)
 
 import qualified Data.Attoparsec.Text as Atto
@@ -69,9 +69,9 @@ import           Graphics.WaveFront.Model (createMTLTable, createModel)
 -- TODO | - Use bytestrings (?)
 --        - Deal with IO and parsing errors
 obj :: (Fractional f, Integral i) => String -> IO (Either String (OBJ f Text i []))
-obj fn = runEitherT $ do
+obj fn = runErrorT $ do
   lift $ putStrLn $ "Loading obj file: " ++ fn
-  EitherT $ Atto.parseOnly (Parse.wholeFile Parse.obj) <$> T.readFile fn
+  ErrorT $ Atto.parseOnly (Parse.wholeFile Parse.obj) <$> T.readFile fn
 
 
 -- |
@@ -90,9 +90,9 @@ mtl fn = do
 --        - Improve path handling (cf. '</>')
 --        - Graceful error handling
 materials :: (Fractional f) => [FilePath] -> IO (Either String (MTLTable f Text))
-materials fns = runEitherT $ do
-  tokens <- mapM (EitherT . mtl) fns
-  EitherT . return $ createTableFromMTLs tokens
+materials fns = runErrorT $ do
+  tokens <- mapM (ErrorT . mtl) fns
+  ErrorT . return $ createTableFromMTLs tokens
   where
     createTableFromMTLs :: [[MTLToken f Text]] -> Either String (MTLTable f Text)
     createTableFromMTLs = createMTLTable . zip (map (T.pack . snd . splitFileName) fns)
@@ -101,8 +101,8 @@ materials fns = runEitherT $ do
 -- | Loads an OBJ model from file, including associated materials
 -- TODO | - Graceful error handling
 model :: (Fractional f, Integral i) => FilePath -> IO (Either String (Model f Text i Vector))
-model fn = runEitherT $ do
-  obj       <- EitherT $ obj fn
-  materials <- EitherT $ materials [ fst (splitFileName fn) </> T.unpack name | LibMTL name <- obj ]
-  EitherT . return $ createModel obj materials (Just $ takeDirectory fn)
+model fn = runErrorT $ do
+  obj       <- ErrorT $ obj fn
+  materials <- ErrorT $ materials [ fst (splitFileName fn) </> T.unpack name | LibMTL name <- obj ]
+  ErrorT . return $ createModel obj materials (Just $ takeDirectory fn)
   -- where loadWithName name = mtl name >>= return . (name,)
