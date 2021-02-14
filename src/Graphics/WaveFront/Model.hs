@@ -1,20 +1,3 @@
--- |
--- Module      : Graphics.WaveFront.Model
--- Description :
--- Copyright   : (c) Jonatan H Sundqvist, 2016
--- License     : MIT
--- Maintainer  : Jonatan H Sundqvist
--- Stability   : stable
--- Portability : portable
---
-
--- TODO | - Single-pass (eg. consume all tokens only once) for additional performance (?)
---        - 
-
--- SPEC | -
---        -
-
-
 
 --------------------------------------------------------------------------------------------------------------------------------------------
 -- GHC Extensions
@@ -67,7 +50,6 @@ import Control.Lens ((^.), (.~), (%~), (&), _1, _2, _3)
 import Cartesian.Core (BoundingBox(..), fromExtents, x, y, z)
 
 import Graphics.WaveFront.Types
-import Graphics.WaveFront.Lenses
 
 
 
@@ -164,7 +146,7 @@ facesOf materials' = makeFaces Nothing Nothing
 createFace :: Ord s => MTLTable f s -> s -> s -> m (VertexIndices i) -> Either String (Face f s i m)
 createFace materials' libName matName indices' = do
   material' <- lookupMaterial materials' libName matName
-  Right $ Face { fIndices=indices', fMaterial=material' }
+  Right $ Face { _faceIndices=indices', _faceMaterial=material' }
 
 
 -- | Tries to find a given material in the specified MTL table
@@ -213,7 +195,11 @@ partitionMaterials = groupBy (\_ b -> not $ isNewMaterial b)
 fromAttributes :: [MTLToken f s] -> Either String (Material f s)
 fromAttributes attrs = case colours' of
   Nothing                -> Left  $ "Missing colour(s)" -- TODO: More elaborate message (eg. which colour)
-  Just (amb, diff, spec) -> Right $ Material { fAmbient=amb,fDiffuse=diff, fSpecular=spec, fTexture=texture' }
+  Just (amb, diff, spec) -> Right $ Material { _materialAmbient=amb
+                                             , _materialDiffuse=diff
+                                             , _materialSpecular=spec
+                                             , _materialTexture=texture' 
+                                             }
   where
     colours' = materialColours attrs
     texture' = listToMaybe [ name | MapDiffuse name <- attrs ]
@@ -236,23 +222,21 @@ materialColours attrs = (,,) <$>
 --        - Performance, one pass (with a fold perhaps)
 --
 -- I never knew pattern matching in list comprehensions could be used to filter by constructor
-createModel :: (Ord s, Integral i) => OBJ f s i [] -> MTLTable f s -> Maybe FilePath -> Either String (Model f s i Vector)
+createModel :: (Ord s, Integral i) => OBJ f s i [] -> MTLTable f s -> Maybe FilePath -> Either String (Model f s i [])
 createModel tokens materials root = do
     faces' <- sequence $ facesOf materials tokens 
-    return $ Model { fVertices  = V.fromList [ vec | OBJVertex   vec <- tokens ],
-                     fNormals   = V.fromList [ vec | OBJNormal   vec <- tokens ],
-                     fTexcoords = V.fromList [ vec | OBJTexCoord vec <- tokens ],
-                     fFaces     = packFaces faces',
-                     fGroups    = groupsOf  tokens,
-                     fObjects   = objectsOf tokens,
-                     fMaterials = materials,
-                     fRoot      = root }
+    return $ Model { _modelVertices  = [ vec | OBJVertex   vec <- tokens ]
+                   , _modelNormals   = [ vec | OBJNormal   vec <- tokens ]
+                   , _modelTexCoords = [ vec | OBJTexCoord vec <- tokens ]
+                   , _modelFaces     = packFaces faces'
+                   , _modelGroups    = groupsOf  tokens
+                   , _modelObjects   = objectsOf tokens
+                   , _modelMaterials = materials
+                   , _modelRoot      = root 
+                   }
   where
-    packFace :: Face f s i [] -> Face f s i Vector
-    packFace face@Face{fIndices} = face { fIndices=V.fromList fIndices } -- indices %~ (_) -- TODO: Type-changing lenses
-
-    packFaces :: [] (Face f s i []) -> Vector (Face f s i Vector)
-    packFaces = V.fromList . map (packFace . tessellate)
+    packFaces :: [] (Face f s i []) -> [Face f s i []]
+    packFaces = map tessellate
 
 
 -- |
@@ -317,17 +301,17 @@ diffuseColours faces' = V.concatMap (\f -> V.replicate (V.length $ f^.indices) (
 
 -- |
 unindexedVertices :: Model f Text Int Vector -> Maybe (Vector (V3 f))
-unindexedVertices model = sequence $ fromFaceIndices (model^.vertices) (index) (^.ivertex) (model^.faces)
+unindexedVertices model = sequence $ fromFaceIndices (model^.vertices) (index) (^.iVertex) (model^.faces)
   where
     index coords i = coords !? (i-1)
 
 unindexedNormals :: Model f Text Int Vector -> Maybe (Vector (V3 f))
-unindexedNormals model = sequence $ fromFaceIndices (model^.normals) (index) (^.inormal) (model^.faces)
+unindexedNormals model = sequence $ fromFaceIndices (model^.normals) (index) (^.iNormal) (model^.faces)
   where
     index coords mi = mi >>= \i -> coords !? (i-1)
 
 unindexedTexcoords :: Model f Text Int Vector -> Maybe (Vector (V2 f))
-unindexedTexcoords model = sequence $ fromFaceIndices (model^.texcoords) (index) (^.itexcoord) (model^.faces)
+unindexedTexcoords model = sequence $ fromFaceIndices (model^.texCoords) (index) (^.iTexCoord) (model^.faces)
   where
     index coords mi = mi >>= \i -> coords !? (i-1)
 

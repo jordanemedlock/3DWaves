@@ -67,7 +67,7 @@ mtl = Atto.sepBy row lineSeparator
 
 -- | Parses a single MTL row.
 row :: (Fractional f) => Atto.Parser (MTLToken f Text)
-row = token <* ignore comment
+row = ignore space *> token <* ignore comment
 
 --------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -77,10 +77,13 @@ token :: (Fractional f) => Atto.Parser (MTLToken f Text)
 token = (Atto.string "Ka"     *> ambient)     <|>
         (Atto.string "Kd"     *> diffuse)     <|>
         (Atto.string "Ks"     *> specular)    <|>
+        (Atto.string "Ke"     *> emissive)    <|>
         (Atto.string "Ns"     *> specExp)     <|>
         (Atto.string "illum"  *> illum)       <|>
         (Atto.string "Ni"     *> refraction)  <|>
         (Atto.string "d"      *> dissolve)    <|> -- TODO: Handle inverse as well (cf. 'Tr' attribute)
+        (Atto.string "Tr"     *> transparent) <|>
+        (Atto.string "Tf"     *> transFilter) <|>
         (Atto.string "map_Kd" *> mapDiffuse)  <|>
         (Atto.string "map_Ka" *> mapAmbient)  <|>
         (Atto.string "newmtl" *> newMaterial)
@@ -125,6 +128,18 @@ refraction = space *> (Refraction <$> Atto.rational)
 -- | A rational number, preceded by whitespace (doss)
 dissolve :: (Fractional f) => Atto.Parser (MTLToken f s)
 dissolve = space *> (Dissolve <$> Atto.rational)
+
+-- | A rational number, preceded by whitespace (doss)
+transparent :: (Fractional f) => Atto.Parser (MTLToken f s)
+transparent = space *> (Dissolve . (1-) <$> Atto.rational)
+
+-- | A rational number, preceded by whitespace (doss)
+transFilter :: (Fractional f) => Atto.Parser (MTLToken f s)
+transFilter = space *> (TransmissionFilter <$> colour)
+
+-- | A rational number, preceded by whitespace (doss)
+emissive :: (Fractional f) => Atto.Parser (MTLToken f s)
+emissive = space *> (EmissiveColour <$> colour)
 
 
 -- | A texture name, preceded by whitespace

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f4e0b5d64d62d132bc92de0371e17e87b0b03279ca0446081fa074414234fc7c
+-- hash: a02b82be595df36fc34670bc97c1a0ddfedc75a4ec037b75dca752c17ba211db
 
 name:           WaveFront
 version:        0.1.0.0
@@ -29,7 +29,6 @@ library
       Graphics.WaveFront
   other-modules:
       Graphics.WaveFront.Foreign
-      Graphics.WaveFront.Lenses
       Graphics.WaveFront.Load
       Graphics.WaveFront.Model
       Graphics.WaveFront.Parse

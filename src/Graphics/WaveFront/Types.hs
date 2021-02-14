@@ -1,32 +1,6 @@
--- |
--- Module      : Graphics.WaveFront.Types
--- Description :
--- Copyright   : (c) Jonatan H Sundqvist, 2015
--- License     : MIT
--- Maintainer  : Jonatan H Sundqvist
--- Stability   : experimental|stable
--- Portability : POSIX (not sure)
---
-
--- Created October 30 2015
-
--- TODO | -
---        -
-
--- SPEC | -
---        -
-
-
-
---------------------------------------------------------------------------------------------------------------------------------------------
--- GHC Pragmas
---------------------------------------------------------------------------------------------------------------------------------------------
-{-# LANGUAGE DuplicateRecordFields #-} -- I love GHC 8.0
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE UndecidableInstances  #-}
-{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor, UndecidableInstances, 
+DeriveFoldable, TemplateHaskell, FlexibleInstances, MultiParamTypeClasses,
+FunctionalDependencies #-}
 
 
 
@@ -44,6 +18,7 @@ import Data.Functor.Classes (Show1) --Eq1, Show1, showsPrec1, eq1)
 import Data.Map as M (Map)
 import Data.Set as S (Set)
 import Linear (V2(..), V3(..))
+import Control.Lens.TH
 
 
 
@@ -54,6 +29,51 @@ import Linear (V2(..), V3(..))
 -- OBJ parser types ------------------------------------------------------------------------------------------------------------------------
 
 -- TODO | - Add strictness annotations (?)
+
+
+-- |
+-- TODO: Rename (?)
+-- TODO: Use union instead of Maybe (?)
+data VertexIndices i = VertexIndices {
+  _vertexIndicesIVertex   :: i,
+  _vertexIndicesITexCoord :: Maybe i,
+  _vertexIndicesINormal   :: Maybe i
+} deriving (Show, Eq)
+
+makeFields ''VertexIndices
+
+-- |
+-- TODO | - Use a type from the colour package instead (?)
+data Colour f = Colour {
+  _colourRed   :: f,
+  _colourGreen :: f,
+  _colourBlue  :: f,
+  _colourAlpha :: f
+} deriving (Show, Eq, Functor, Foldable)
+makeFields ''Colour
+
+-- |
+-- TODO | - Do all materials have an ambient, a diffuse and a specular colour (?)
+--        - Support more attributes (entire spec) (?)
+--        - Lenses (?)
+data Material f s = Material {
+  _materialAmbient  :: Colour f,
+  _materialDiffuse  :: Colour f,
+  _materialSpecular :: Colour f,
+  _materialTexture  :: Maybe s
+} deriving (Show, Eq)
+makeFields ''Material
+
+-- |
+-- TODO | - Validation (eg. length ivertices == length == ivertices == length itextures if length isn't 0)
+--        - Pack indices in a tuple (eg. indices :: [(Int, Int, Int)]) (?)
+--        - Use (String, String) for the names of the mtl file and material instead of Material (?)
+--        - Use types so as not to confuse the indices (eg. newtype INormal, newtype ITexcoord)
+data Face f s i m = Face {
+  _faceIndices  :: m (VertexIndices i),
+  _faceMaterial :: Material f s
+} --deriving (Show, Eq)
+makeFields ''Face
 
 
 -- | Represents a single (valid) OBJ token
@@ -84,15 +104,6 @@ data OBJToken f s i m = OBJVertex   (V3 f) |
                         -- deriving (Show, Eq) -- TODO: Derive Read (?)
 
 
--- |
--- TODO: Rename (?)
--- TODO: Use union instead of Maybe (?)
-data VertexIndices i = VertexIndices {
-  fIvertex   :: i,
-  fItexcoord :: Maybe i,
-  fInormal   :: Maybe i
-} deriving (Show, Eq)
-
 
 -- | Output type of the OBJ parser.
 --
@@ -102,6 +113,21 @@ data VertexIndices i = VertexIndices {
 type OBJ f s i m = m (OBJToken f s i m)
 
 -- MTL parser types ------------------------------------------------------------------------------------------------------------------------
+
+-- |
+-- 0. Color on and Ambient off
+-- 1. Color on and Ambient on
+-- 2. Highlight on
+-- 3. Reflection on and Ray trace on
+-- 4. Transparency: Glass on, Reflection: Ray trace on
+-- 5. Reflection: Fresnel on and Ray trace on
+-- 6. Transparency: Refraction on, Reflection: Fresnel off and Ray trace on
+-- 7. Transparency: Refraction on, Reflection: Fresnel on and Ray trace on
+-- 8. Reflection on and Ray trace off
+-- 9. Transparency: Glass on, Reflection: Ray trace off
+-- 10. Casts shadows onto invisible surfaces
+type Illumination = Int
+
 
 -- | Represents a single (valid) MTL token
 --
@@ -119,25 +145,13 @@ data MTLToken f s = Ambient  (Colour f) | -- Ka
                     Dissolve f          | -- d (Dissolve; transparency)
                     Refraction f        | -- Ni (Index of refraction; optical_density)
 
+                    TransmissionFilter (Colour f) | -- Tf (transmission filter colour)
+                    EmissiveColour (Colour f) | -- Ke (emissive colour)
+
                     MapDiffuse  s | -- map_Kd
                     MapAmbient  s | -- map_Ka
                     NewMaterial s   -- newmtl
                     deriving (Show, Eq)
-
-
--- |
--- 0. Color on and Ambient off
--- 1. Color on and Ambient on
--- 2. Highlight on
--- 3. Reflection on and Ray trace on
--- 4. Transparency: Glass on, Reflection: Ray trace on
--- 5. Reflection: Fresnel on and Ray trace on
--- 6. Transparency: Refraction on, Reflection: Fresnel off and Ray trace on
--- 7. Transparency: Refraction on, Reflection: Fresnel on and Ray trace on
--- 8. Reflection on and Ray trace off
--- 9. Transparency: Glass on, Reflection: Ray trace off
--- 10. Casts shadows onto invisible surfaces
-type Illumination = Int
 
 
 -- | Output type of the MTL parser. Currently a list of line number and token (or error string) pairs
@@ -147,47 +161,6 @@ type MTL f s m = m (MTLToken f s) -- (line number, MTL token, comment)
 
 -- |
 type MTLTable f s = Map s (Map s (Material f s))
-
--- Model -----------------------------------------------------------------------------------------------------------------------------------
-
-type Vertices  f m   = m (V3 f)
-type TexCoords f m   = m (Maybe (V2 f))
-type Normals   f m   = m (Maybe (V3 f))
-type Materials f s m = m (Material f s)
-
--- API types -------------------------------------------------------------------------------------------------------------------------------
-
--- |
--- TODO | - Validation (eg. length ivertices == length == ivertices == length itextures if length isn't 0)
---        - Pack indices in a tuple (eg. indices :: [(Int, Int, Int)]) (?)
---        - Use (String, String) for the names of the mtl file and material instead of Material (?)
---        - Use types so as not to confuse the indices (eg. newtype INormal, newtype ITexcoord)
-data Face f s i m = Face {
-  fIndices  :: m (VertexIndices i),
-  fMaterial :: Material f s
-} --deriving (Show, Eq)
-
-
--- |
--- TODO | - Use a type from the colour package instead (?)
-data Colour f = Colour {
-  fRed   :: f,
-  fGreen :: f,
-  fBlue  :: f,
-  fAlpha :: f
-} deriving (Show, Eq, Functor, Foldable)
-
-
--- |
--- TODO | - Do all materials have an ambient, a diffuse and a specular colour (?)
---        - Support more attributes (entire spec) (?)
---        - Lenses (?)
-data Material f s = Material {
-  fAmbient  :: Colour f,
-  fDiffuse  :: Colour f,
-  fSpecular :: Colour f,
-  fTexture  :: Maybe s
-} deriving (Show, Eq)
 
 
 -- | Abstract representation of an OBJ model with associated MTL definitions.
@@ -202,15 +175,31 @@ data Material f s = Material {
 -- fTextures  :: Set s,
 -- data Model f s i m = Model {
 data Model f s i m = Model {
-  fVertices  :: m (V3 f),
-  fNormals   :: m (V3 f),
-  fTexcoords :: m (V2 f),
-  fFaces     :: m (Face f s i m),
-  fMaterials :: MTLTable f s,         -- TODO: Type synonym (?)
-  fGroups    :: Map (Set s) (i, i), -- TODO: Type synonym
-  fObjects   :: Map (Set s) (i, i), -- TODO: Type synonym
-  fRoot      :: Maybe FilePath        -- This is where we should look for related assets
+  _modelVertices  :: m (V3 f),
+  _modelNormals   :: m (V3 f),
+  _modelTexCoords :: m (V2 f),
+  _modelFaces     :: m (Face f s i m),
+  _modelMaterials :: MTLTable f s,         -- TODO: Type synonym (?)
+  _modelGroups    :: Map (Set s) (i, i), -- TODO: Type synonym
+  _modelObjects   :: Map (Set s) (i, i), -- TODO: Type synonym
+  _modelRoot      :: Maybe FilePath        -- This is where we should look for related assets
 } -- deriving (Show, Eq)
+makeFields ''Model
+
+
+
+
+-- Model -----------------------------------------------------------------------------------------------------------------------------------
+
+type Vertices  f m   = m (V3 f)
+type TexCoords f m   = m (Maybe (V2 f))
+type Normals   f m   = m (Maybe (V3 f))
+type Materials f s m = m (Material f s)
+
+-- API types -------------------------------------------------------------------------------------------------------------------------------
+
+
+
 
 -- Monomorphic defaults --------------------------------------------------------------------------------------------------------------------
 

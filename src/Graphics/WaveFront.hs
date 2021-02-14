@@ -1,51 +1,24 @@
--- |
--- Module      : Graphics.WaveFront
--- Description : Re-exports public API
--- Copyright   : (c) Jonatan H Sundqvist, 2016
--- License     : MIT
--- Maintainer  : Jonatan H Sundqvist
--- Stability   : experimental|stable
--- Portability : POSIX (not sure)
-
--- TODO | - Logging
---        -
-
--- SPEC | -
---        -
-
-
-
---------------------------------------------------------------------------------------------------------------------------------------------
--- GHC Extensions
---------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 --------------------------------------------------------------------------------------------------------------------------------------------
 -- API
 --------------------------------------------------------------------------------------------------------------------------------------------
 -- TODO | - Decide on an API
 module Graphics.WaveFront (
-  -- * OBJ types
-  OBJToken(..), VertexIndices(..), OBJ,
-  
-  -- * MTL types
-  MTLToken(..), Illumination(..), MTL, MTLTable(..),
-  
-  -- * Model types
-  Face(..), Colour(..), Material(..), Model(..),
+  -- * types
+  module Types,
   
   -- * Lenses
-  module Lenses,
+  -- module Lenses,
   
   -- * Parsing
-  module Graphics.WaveFront.Parse,
+  -- module Graphics.WaveFront.Parse,
   
   -- * Model functions
-  createModel, tessellate, bounds, fromIndices, fromFaceIndices, diffuseColours, hasTextures, textures,
+  -- createModel, tessellate, bounds, fromIndices, fromFaceIndices, diffuseColours, hasTextures, textures,
 
   -- * Loading
-  module Load,
+  model,
+  
 
 ) where
 
@@ -54,9 +27,8 @@ module Graphics.WaveFront (
 --------------------------------------------------------------------------------------------------------------------------------------------
 -- We'll need these
 --------------------------------------------------------------------------------------------------------------------------------------------
-import Graphics.WaveFront.Types
-import Graphics.WaveFront.Parse
+import Graphics.WaveFront.Types as Types
+-- import Graphics.WaveFront.Parse
 import Graphics.WaveFront.Parse.Common
 import Graphics.WaveFront.Model
-import Graphics.WaveFront.Lenses as Lenses
-import qualified Graphics.WaveFront.Load as Load
+import Graphics.WaveFront.Load ( obj, mtl, materials, model )
